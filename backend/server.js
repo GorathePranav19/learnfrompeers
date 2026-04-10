@@ -50,13 +50,19 @@ const authLimiter = rateLimit({
 app.use('/api/', generalLimiter);
 app.use('/api/auth/login', authLimiter);
 
-// ── Routes ──
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/students', require('./routes/students'));
-app.use('/api/attendance', require('./routes/attendance'));
-app.use('/api/performance', require('./routes/performance'));
-app.use('/api/rankings', require('./routes/rankings'));
-app.use('/api/analytics', require('./routes/analytics'));
+// ── Routes Setup ──
+const apiRouter = express.Router();
+apiRouter.use('/auth', require('./routes/auth'));
+apiRouter.use('/students', require('./routes/students'));
+apiRouter.use('/attendance', require('./routes/attendance'));
+apiRouter.use('/performance', require('./routes/performance'));
+apiRouter.use('/rankings', require('./routes/rankings'));
+apiRouter.use('/analytics', require('./routes/analytics'));
+
+// Mount routes on /api (for local dev and standard routing)
+app.use('/api', apiRouter);
+// Mount routes on root (for Vercel Web Services with routePrefix stripping)
+app.use('/', apiRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -74,28 +80,27 @@ app.use((err, req, res, next) => {
 
 // ── Start Server / Export for Serverless ──
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
-  // Only listen dynamically if we're not running on Vercel functions directly
-  const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+
+// Always listen so Vercel Web Services (which run `node server.js`) stay alive
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
+// ── Graceful Shutdown ──
+const shutdown = async (signal) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  server.close(async () => {
+    await disconnectDB();
+    process.exit(0);
   });
+  // Force exit after 10 seconds
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
 
-  // ── Graceful Shutdown ──
-  const shutdown = async (signal) => {
-    console.log(`\n${signal} received. Shutting down gracefully...`);
-    server.close(async () => {
-      await disconnectDB();
-      process.exit(0);
-    });
-    // Force exit after 10 seconds
-    setTimeout(() => {
-      console.error('Forced shutdown after timeout');
-      process.exit(1);
-    }, 10000);
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = app;
