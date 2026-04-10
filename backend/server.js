@@ -15,8 +15,22 @@ connectDB().catch(err => console.error("Initial DB connection failed:", err));
 app.use(helmet());
 
 // ── CORS ──
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://learnfrompeers.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    // or requests from our allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
