@@ -16,10 +16,9 @@ const connectDB = async () => {
       const { MongoMemoryServer } = require('mongodb-memory-server');
       mongoServer = await MongoMemoryServer.create();
       mongoUri = mongoServer.getUri();
-      console.log('📦 Using in-memory MongoDB');
     } else {
       // Real MongoDB for production/persistent data
-      mongoUri = process.env.MONGO_URI;
+      mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
       if (!mongoUri) {
         console.error('❌ MONGO_URI not set. Set USE_MEMORY_DB=true for dev or provide MONGO_URI.');
         process.exit(1);
