@@ -21,7 +21,7 @@ const connectDB = async () => {
       mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
       if (!mongoUri) {
         console.error('❌ MONGO_URI not set. Set USE_MEMORY_DB=true for dev or provide MONGO_URI.');
-        process.exit(1);
+        throw new Error('MONGO_URI not set');
       }
       console.log('📦 Connecting to MongoDB...');
     }
@@ -38,7 +38,8 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    // DO NOT process.exit(1) in Serverless environments
+    throw error;
   }
 };
 

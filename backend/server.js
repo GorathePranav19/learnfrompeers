@@ -9,7 +9,7 @@ const { connectDB, disconnectDB } = require('./config/db');
 const app = express();
 
 // Connect to MongoDB
-connectDB();
+connectDB().catch(err => console.error("Initial DB connection failed:", err));
 
 // ── Security Middleware ──
 app.use(helmet());
