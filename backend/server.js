@@ -72,25 +72,30 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Start Server ──
+// ── Start Server / Export for Serverless ──
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
-
-// ── Graceful Shutdown ──
-const shutdown = async (signal) => {
-  console.log(`\n${signal} received. Shutting down gracefully...`);
-  server.close(async () => {
-    await disconnectDB();
-    process.exit(0);
+if (process.env.NODE_ENV !== 'production') {
+  // Only listen dynamically if we're not running on Vercel functions directly
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
   });
-  // Force exit after 10 seconds
-  setTimeout(() => {
-    console.error('Forced shutdown after timeout');
-    process.exit(1);
-  }, 10000);
-};
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+  // ── Graceful Shutdown ──
+  const shutdown = async (signal) => {
+    console.log(`\n${signal} received. Shutting down gracefully...`);
+    server.close(async () => {
+      await disconnectDB();
+      process.exit(0);
+    });
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      console.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+module.exports = app;

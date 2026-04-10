@@ -7,6 +7,10 @@ const connectDB = async () => {
     const useMemory = process.env.USE_MEMORY_DB === 'true' || process.env.NODE_ENV === 'test';
     let mongoUri;
 
+    if (mongoose.connection.readyState >= 1) {
+      return mongoose.connection;
+    }
+
     if (useMemory) {
       // In-memory MongoDB for dev/testing (no external MongoDB needed)
       const { MongoMemoryServer } = require('mongodb-memory-server');
