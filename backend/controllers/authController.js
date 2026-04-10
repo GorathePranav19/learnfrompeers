@@ -12,10 +12,6 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
-    }
-
     const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -33,11 +29,12 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// POST /api/auth/register (admin only in production)
+// POST /api/auth/register (admin only)
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, linkedStudentId } = req.body;
@@ -60,7 +57,8 @@ exports.register = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -68,8 +66,12 @@ exports.register = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('GetMe error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

@@ -1,15 +1,34 @@
 const Student = require('../models/Student');
+const Attendance = require('../models/Attendance');
+const Performance = require('../models/Performance');
+const { escapeRegex } = require('../middleware/validate');
+
+// Whitelist of allowed fields for create/update
+const ALLOWED_FIELDS = [
+  'name', 'dob', 'gender', 'phone', 'parentName',
+  'parentPhone', 'parentEmail', 'course', 'address', 'status', 'photo'
+];
+
+const pickFields = (body) => {
+  const obj = {};
+  ALLOWED_FIELDS.forEach(field => {
+    if (body[field] !== undefined) obj[field] = body[field];
+  });
+  return obj;
+};
 
 // POST /api/students
 exports.createStudent = async (req, res) => {
   try {
-    const student = await Student.create(req.body);
+    const data = pickFields(req.body);
+    const student = await Student.create(data);
     res.status(201).json(student);
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ message: 'Duplicate entry found' });
     }
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Create student error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -20,31 +39,36 @@ exports.getStudents = async (req, res) => {
     const query = {};
 
     if (search) {
+      const escaped = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { studentId: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { parentName: { $regex: search, $options: 'i' } }
+        { name: { $regex: escaped, $options: 'i' } },
+        { studentId: { $regex: escaped, $options: 'i' } },
+        { phone: { $regex: escaped, $options: 'i' } },
+        { parentName: { $regex: escaped, $options: 'i' } }
       ];
     }
 
     if (status) query.status = status;
     if (course) query.course = course;
 
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+
     const total = await Student.countDocuments(query);
     const students = await Student.find(query)
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum);
 
     res.json({
       students,
       total,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit)
+      page: pageNum,
+      pages: Math.ceil(total / limitNum)
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get students error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -57,14 +81,16 @@ exports.getStudent = async (req, res) => {
     }
     res.json(student);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get student error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 // PUT /api/students/:id
 exports.updateStudent = async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, {
+    const data = pickFields(req.body);
+    const student = await Student.findByIdAndUpdate(req.params.id, data, {
       new: true,
       runValidators: true
     });
@@ -73,20 +99,27 @@ exports.updateStudent = async (req, res) => {
     }
     res.json(student);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Update student error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// DELETE /api/students/:id
+// DELETE /api/students/:id — cascades to attendance & performance
 exports.deleteStudent = async (req, res) => {
   try {
     const student = await Student.findByIdAndDelete(req.params.id);
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
     }
-    res.json({ message: 'Student deleted successfully' });
+
+    // Cascade delete related records
+    await Attendance.deleteMany({ studentId: req.params.id });
+    await Performance.deleteMany({ studentId: req.params.id });
+
+    res.json({ message: 'Student and related records deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Delete student error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -103,6 +136,7 @@ exports.approveStudent = async (req, res) => {
     }
     res.json(student);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Approve student error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

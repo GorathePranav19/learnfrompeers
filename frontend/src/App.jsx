@@ -9,6 +9,7 @@ import Admission from './pages/Admission';
 import Attendance from './pages/Attendance';
 import Performance from './pages/Performance';
 import Rankings from './pages/Rankings';
+import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -49,7 +50,7 @@ export default function App() {
         } />
         <Route path="rankings" element={<Rankings />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

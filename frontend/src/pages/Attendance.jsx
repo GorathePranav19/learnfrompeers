@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '../components/Toast';
 import api from '../api';
 import { HiOutlineCheckCircle } from 'react-icons/hi2';
 
 export default function Attendance() {
+  const toast = useToast();
   const [students, setStudents] = useState([]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState({});
@@ -60,7 +62,7 @@ export default function Attendance() {
       .map(([studentId, status]) => ({ studentId, status }));
 
     if (attendanceRecords.length === 0) {
-      alert('Please mark attendance for at least one student');
+      toast.warning('Please mark attendance for at least one student');
       return;
     }
 
@@ -68,9 +70,10 @@ export default function Attendance() {
     try {
       await api.post('/attendance', { date, records: attendanceRecords });
       setSaved(true);
+      toast.success('Attendance saved successfully!');
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert('Failed to save attendance');
+      toast.error('Failed to save attendance');
     } finally {
       setSaving(false);
     }
@@ -117,7 +120,7 @@ export default function Attendance() {
       </div>
 
       {saved && (
-        <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', padding: '12px 20px', borderRadius: 'var(--radius-md)', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-400)' }}>
+        <div className="alert-success mb-24">
           <HiOutlineCheckCircle /> Attendance saved successfully!
         </div>
       )}

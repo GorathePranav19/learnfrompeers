@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import api from '../api';
 import {
   HiOutlinePhone,
@@ -7,22 +9,26 @@ import {
   HiOutlineCalendar,
   HiOutlineAcademicCap,
   HiOutlineArrowLeft,
-  HiOutlineArrowTrendingUp
+  HiOutlineArrowTrendingUp,
+  HiOutlinePencilSquare,
+  HiOutlineXMark
 } from 'react-icons/hi2';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function StudentProfile() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const toast = useToast();
   const [student, setStudent] = useState(null);
   const [attendance, setAttendance] = useState(null);
   const [performance, setPerformance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchAll();
-  }, [id]);
-
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const [stuRes, attRes, perfRes] = await Promise.all([
         api.get(`/students/${id}`),
@@ -36,6 +42,38 @@ export default function StudentProfile() {
       console.error('Failed to fetch student data:', err);
     } finally {
       setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const openEdit = () => {
+    setEditForm({
+      name: student.name,
+      phone: student.phone,
+      course: student.course,
+      parentName: student.parentName,
+      parentPhone: student.parentPhone,
+      parentEmail: student.parentEmail || '',
+      address: student.address || ''
+    });
+    setShowEdit(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await api.put(`/students/${id}`, editForm);
+      setStudent(res.data);
+      setShowEdit(false);
+      toast.success('Student updated successfully');
+    } catch (err) {
+      toast.error('Failed to update student');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -52,6 +90,13 @@ export default function StudentProfile() {
     advanced: 'badge-success',
     expert: 'badge-success'
   };
+
+  // Build chart data for performance trend (reverse to chronological)
+  const chartData = (performance?.records || []).slice().reverse().map(r => ({
+    date: new Date(r.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+    speed: r.typingSpeed,
+    accuracy: r.accuracy
+  }));
 
   return (
     <div>
@@ -71,6 +116,11 @@ export default function StudentProfile() {
             </span>
           </div>
         </div>
+        {user?.role === 'admin' && (
+          <button className="btn btn-secondary" onClick={openEdit} style={{ marginLeft: 'auto' }}>
+            <HiOutlinePencilSquare /> Edit
+          </button>
+        )}
       </div>
 
       <div className="tabs">
@@ -112,26 +162,56 @@ export default function StudentProfile() {
             </div>
           </div>
 
+          {/* Performance Chart */}
+          {chartData.length > 1 && (
+            <div className="card mb-24">
+              <div className="card-header"><h2>Performance Trend</h2></div>
+              <div className="card-body">
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary-500)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--primary-500)" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="accGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent-500)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--accent-500)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis hide />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 13 }}
+                    />
+                    <Area type="monotone" dataKey="speed" stroke="var(--primary-400)" fill="url(#speedGrad)" strokeWidth={2} name="Speed (WPM)" />
+                    <Area type="monotone" dataKey="accuracy" stroke="var(--accent-400)" fill="url(#accGrad)" strokeWidth={2} name="Accuracy (%)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
           <div className="student-details-grid">
             <div className="card">
               <div className="card-header"><h2>Personal Details</h2></div>
               <div className="card-body">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Date of Birth</div>
-                    <div style={{ fontWeight: 500 }}>{formatDate(student.dob)}</div>
+                <div className="detail-list">
+                  <div className="detail-item">
+                    <div className="detail-label">Date of Birth</div>
+                    <div className="detail-value">{formatDate(student.dob)}</div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Gender</div>
-                    <div style={{ fontWeight: 500, textTransform: 'capitalize' }}>{student.gender}</div>
+                  <div className="detail-item">
+                    <div className="detail-label">Gender</div>
+                    <div className="detail-value" style={{ textTransform: 'capitalize' }}>{student.gender}</div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Phone</div>
-                    <div style={{ fontWeight: 500 }}><HiOutlinePhone style={{ marginRight: 4 }} />{student.phone}</div>
+                  <div className="detail-item">
+                    <div className="detail-label">Phone</div>
+                    <div className="detail-value"><HiOutlinePhone style={{ marginRight: 4 }} />{student.phone}</div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Admission Date</div>
-                    <div style={{ fontWeight: 500 }}>{formatDate(student.admissionDate)}</div>
+                  <div className="detail-item">
+                    <div className="detail-label">Admission Date</div>
+                    <div className="detail-value">{formatDate(student.admissionDate)}</div>
                   </div>
                 </div>
               </div>
@@ -140,25 +220,25 @@ export default function StudentProfile() {
             <div className="card">
               <div className="card-header"><h2>Parent / Guardian</h2></div>
               <div className="card-body">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Parent Name</div>
-                    <div style={{ fontWeight: 500 }}>{student.parentName}</div>
+                <div className="detail-list">
+                  <div className="detail-item">
+                    <div className="detail-label">Parent Name</div>
+                    <div className="detail-value">{student.parentName}</div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Phone</div>
-                    <div style={{ fontWeight: 500 }}><HiOutlinePhone style={{ marginRight: 4 }} />{student.parentPhone}</div>
+                  <div className="detail-item">
+                    <div className="detail-label">Phone</div>
+                    <div className="detail-value"><HiOutlinePhone style={{ marginRight: 4 }} />{student.parentPhone}</div>
                   </div>
                   {student.parentEmail && (
-                    <div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Email</div>
-                      <div style={{ fontWeight: 500 }}><HiOutlineEnvelope style={{ marginRight: 4 }} />{student.parentEmail}</div>
+                    <div className="detail-item">
+                      <div className="detail-label">Email</div>
+                      <div className="detail-value"><HiOutlineEnvelope style={{ marginRight: 4 }} />{student.parentEmail}</div>
                     </div>
                   )}
                   {student.address && (
-                    <div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Address</div>
-                      <div style={{ fontWeight: 500 }}>{student.address}</div>
+                    <div className="detail-item">
+                      <div className="detail-label">Address</div>
+                      <div className="detail-value">{student.address}</div>
                     </div>
                   )}
                 </div>
@@ -277,6 +357,69 @@ export default function StudentProfile() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Edit Student Modal */}
+      {showEdit && (
+        <div className="modal-overlay" onClick={() => setShowEdit(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Student</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEdit(false)}>
+                <HiOutlineXMark />
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleEditSubmit}>
+                <div className="form-group">
+                  <label className="form-label">Name</label>
+                  <input className="form-input" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Phone</label>
+                    <input className="form-input" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Course</label>
+                    <select className="form-select" value={editForm.course} onChange={e => setEditForm({ ...editForm, course: e.target.value })} required>
+                      <option value="Typing">Typing</option>
+                      <option value="Computer Basics">Computer Basics</option>
+                      <option value="MS Office">MS Office</option>
+                      <option value="Tally">Tally</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Parent Name</label>
+                  <input className="form-input" value={editForm.parentName} onChange={e => setEditForm({ ...editForm, parentName: e.target.value })} required />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Parent Phone</label>
+                    <input className="form-input" value={editForm.parentPhone} onChange={e => setEditForm({ ...editForm, parentPhone: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Parent Email</label>
+                    <input className="form-input" type="email" value={editForm.parentEmail} onChange={e => setEditForm({ ...editForm, parentEmail: e.target.value })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Address</label>
+                  <textarea className="form-textarea" value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} />
+                </div>
+                <div className="flex gap-12">
+                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowEdit(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

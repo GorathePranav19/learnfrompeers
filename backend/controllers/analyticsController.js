@@ -91,6 +91,7 @@ exports.getAnalytics = async (req, res) => {
       monthlyTrend
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get analytics error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

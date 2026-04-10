@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Counter = require('./Counter');
 
 const studentSchema = new mongoose.Schema({
   studentId: {
@@ -65,11 +66,11 @@ const studentSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Auto-generate student ID before saving
+// Auto-generate student ID using atomic counter (no race condition)
 studentSchema.pre('save', async function(next) {
   if (!this.studentId) {
-    const count = await mongoose.model('Student').countDocuments();
-    this.studentId = `STU${String(count + 1).padStart(4, '0')}`;
+    const seq = await Counter.getNextSequence('studentId');
+    this.studentId = `STU${String(seq).padStart(4, '0')}`;
   }
   next();
 });

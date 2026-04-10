@@ -5,7 +5,6 @@ const Student = require('../models/Student');
 exports.markAttendance = async (req, res) => {
   try {
     const { records, date } = req.body;
-    // records: [{ studentId, status, notes }]
     const attendanceDate = new Date(date);
     attendanceDate.setHours(0, 0, 0, 0);
 
@@ -36,13 +35,14 @@ exports.markAttendance = async (req, res) => {
           results.push(attendance);
         }
       } catch (err) {
-        errors.push({ studentId: record.studentId, error: err.message });
+        errors.push({ studentId: record.studentId, error: 'Failed to save record' });
       }
     }
 
     res.status(201).json({ saved: results.length, errors, results });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Mark attendance error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -61,7 +61,8 @@ exports.getDailyAttendance = async (req, res) => {
 
     res.json(attendance);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get daily attendance error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -91,7 +92,8 @@ exports.getStudentAttendance = async (req, res) => {
       summary: { total, present, absent, late, rate: parseFloat(rate) }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get student attendance error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -119,6 +121,7 @@ exports.getAttendanceSummary = async (req, res) => {
       attendanceRate: totalStudents > 0 ? ((presentToday / totalStudents) * 100).toFixed(1) : 0
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get attendance summary error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

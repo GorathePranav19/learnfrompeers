@@ -1,57 +1,89 @@
 const Performance = require('../models/Performance');
 const Attendance = require('../models/Attendance');
 const Student = require('../models/Student');
+const mongoose = require('mongoose');
 
-// GET /api/rankings
+// GET /api/rankings — Optimized with aggregation (no more N+1 queries)
 exports.getRankings = async (req, res) => {
   try {
-    const students = await Student.find({ status: 'approved' });
-    const rankings = [];
+    const students = await Student.find({ status: 'approved' }).lean();
 
-    for (const student of students) {
-      // Get latest performance
-      const latestPerf = await Performance.findOne({ studentId: student._id })
-        .sort({ date: -1 });
+    if (students.length === 0) {
+      return res.json({ rankings: [], topPerformers: [] });
+    }
 
-      // Get average performance
-      const allPerfs = await Performance.find({ studentId: student._id });
-      const avgSpeed = allPerfs.length > 0
-        ? allPerfs.reduce((sum, p) => sum + p.typingSpeed, 0) / allPerfs.length
-        : 0;
-      const avgAccuracy = allPerfs.length > 0
-        ? allPerfs.reduce((sum, p) => sum + p.accuracy, 0) / allPerfs.length
-        : 0;
+    const studentIds = students.map(s => s._id);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      // Get attendance rate (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const attendanceRecords = await Attendance.find({
-        studentId: student._id,
-        date: { $gte: thirtyDaysAgo }
-      });
-      const attendanceRate = attendanceRecords.length > 0
-        ? (attendanceRecords.filter(a => a.status === 'present' || a.status === 'late').length / attendanceRecords.length) * 100
+    // Aggregate all performance data in one query
+    const perfAgg = await Performance.aggregate([
+      { $match: { studentId: { $in: studentIds } } },
+      { $sort: { date: -1 } },
+      {
+        $group: {
+          _id: '$studentId',
+          latestSpeed: { $first: '$typingSpeed' },
+          latestAccuracy: { $first: '$accuracy' },
+          latestLevel: { $first: '$level' },
+          avgSpeed: { $avg: '$typingSpeed' },
+          avgAccuracy: { $avg: '$accuracy' }
+        }
+      }
+    ]);
+
+    // Aggregate attendance in one query
+    const attAgg = await Attendance.aggregate([
+      { $match: { studentId: { $in: studentIds }, date: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: '$studentId',
+          total: { $sum: 1 },
+          attended: {
+            $sum: { $cond: [{ $in: ['$status', ['present', 'late']] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    // Build lookup maps
+    const perfMap = {};
+    perfAgg.forEach(p => { perfMap[p._id.toString()] = p; });
+
+    const attMap = {};
+    attAgg.forEach(a => { attMap[a._id.toString()] = a; });
+
+    // Build rankings
+    const rankings = students.map(student => {
+      const sid = student._id.toString();
+      const perf = perfMap[sid] || {};
+      const att = attMap[sid] || {};
+
+      const avgSpeed = perf.avgSpeed ? Math.round(perf.avgSpeed * 10) / 10 : 0;
+      const avgAccuracy = perf.avgAccuracy ? Math.round(perf.avgAccuracy * 10) / 10 : 0;
+      const attendanceRate = att.total > 0
+        ? Math.round((att.attended / att.total) * 1000) / 10
         : 0;
 
       // Composite score: 50% typing speed + 30% accuracy + 20% attendance
-      const score = (avgSpeed * 0.5) + (avgAccuracy * 0.3) + (attendanceRate * 0.2);
+      const score = Math.round(((avgSpeed * 0.5) + (avgAccuracy * 0.3) + (attendanceRate * 0.2)) * 10) / 10;
 
-      rankings.push({
+      return {
         student: {
           _id: student._id,
           name: student.name,
           studentId: student.studentId,
           course: student.course
         },
-        latestSpeed: latestPerf ? latestPerf.typingSpeed : 0,
-        latestAccuracy: latestPerf ? latestPerf.accuracy : 0,
-        avgSpeed: Math.round(avgSpeed * 10) / 10,
-        avgAccuracy: Math.round(avgAccuracy * 10) / 10,
-        attendanceRate: Math.round(attendanceRate * 10) / 10,
-        level: latestPerf ? latestPerf.level : 'beginner',
-        score: Math.round(score * 10) / 10
-      });
-    }
+        latestSpeed: perf.latestSpeed || 0,
+        latestAccuracy: perf.latestAccuracy || 0,
+        avgSpeed,
+        avgAccuracy,
+        attendanceRate,
+        level: perf.latestLevel || 'beginner',
+        score
+      };
+    });
 
     // Sort by score descending
     rankings.sort((a, b) => b.score - a.score);
@@ -64,6 +96,7 @@ exports.getRankings = async (req, res) => {
       topPerformers: rankings.slice(0, 3)
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get rankings error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

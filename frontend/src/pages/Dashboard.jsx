@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../api';
@@ -10,17 +10,14 @@ import {
   HiOutlineArrowTrendingUp,
   HiOutlineArrowTrendingDown
 } from 'react-icons/hi2';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       if (user.role === 'admin' || user.role === 'teacher') {
         const res = await api.get('/analytics');
@@ -31,13 +28,17 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.role]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return <div className="loading-spinner"><div className="spinner" /></div>;
   }
 
-  // Parent/Student view
+  // Parent/Student view — show linked student data
   if (user.role === 'parent' || user.role === 'student') {
     return (
       <div>
@@ -64,12 +65,30 @@ export default function Dashboard() {
               </div>
             </div>
           </Link>
+          <Link to="/students" style={{ textDecoration: 'none' }}>
+            <div className="stat-card amber">
+              <div className="stat-icon amber"><HiOutlineUsers /></div>
+              <div className="stat-content">
+                <h3>All Students</h3>
+                <p>Browse the student directory</p>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
     );
   }
 
   const overview = analytics?.overview || {};
+
+  // Build chart data from monthly trend
+  const chartData = (analytics?.monthlyTrend || []).map(m => {
+    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return {
+      name: monthNames[m._id.month],
+      rate: m.total > 0 ? Math.round((m.present / m.total) * 100) : 0
+    };
+  });
 
   return (
     <div>
@@ -109,7 +128,7 @@ export default function Dashboard() {
             <h3>{overview.avgTypingSpeed || 0}</h3>
             <p>Avg. WPM Speed</p>
             <div className="stat-trend up">
-              <HiOutlineArrowTrendingUp /> Improving
+              <HiOutlineArrowTrendingUp /> {overview.avgAccuracy || 0}% accuracy
             </div>
           </div>
         </div>
@@ -128,7 +147,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div className="dashboard-grid">
         {/* Recent Admissions */}
         <div className="card">
           <div className="card-header">
@@ -169,12 +188,42 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Course Distribution */}
+        {/* Course Distribution + Attendance Chart */}
         <div className="card">
           <div className="card-header">
-            <h2>Course Distribution</h2>
+            <h2>Overview</h2>
           </div>
           <div className="card-body">
+            {/* Attendance Trend Chart */}
+            {chartData.length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                  Attendance Trend
+                </div>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="attendGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary-500)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--primary-500)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis hide domain={[0, 100]} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 13 }}
+                      formatter={(value) => [`${value}%`, 'Rate']}
+                    />
+                    <Area type="monotone" dataKey="rate" stroke="var(--primary-400)" fill="url(#attendGrad)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Course Distribution */}
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12 }}>
+              Course Distribution
+            </div>
             {(analytics?.courseDistribution || []).map((c) => (
               <div key={c._id} style={{ marginBottom: 20 }}>
                 <div className="flex-between mb-8">

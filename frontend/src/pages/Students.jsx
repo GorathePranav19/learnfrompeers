@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import api from '../api';
 import {
   HiOutlineMagnifyingGlass,
@@ -11,14 +12,22 @@ import {
 
 export default function Students() {
   const { user } = useAuth();
+  const toast = useToast();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [total, setTotal] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
-    fetchStudents();
+    // Debounce search — wait 300ms after last keystroke
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchStudents();
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
   }, [search, statusFilter]);
 
   const fetchStudents = async () => {
@@ -40,19 +49,21 @@ export default function Students() {
   const handleApprove = async (id) => {
     try {
       await api.put(`/students/${id}/approve`);
+      toast.success('Student approved successfully');
       fetchStudents();
     } catch (err) {
-      alert('Failed to approve student');
+      toast.error('Failed to approve student');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this student?')) return;
     try {
       await api.delete(`/students/${id}`);
+      toast.success('Student deleted successfully');
+      setConfirmDelete(null);
       fetchStudents();
     } catch (err) {
-      alert('Failed to delete student');
+      toast.error('Failed to delete student');
     }
   };
 
@@ -140,7 +151,7 @@ export default function Students() {
                           </button>
                         )}
                         {user.role === 'admin' && (
-                          <button className="btn btn-ghost btn-icon" style={{ color: 'var(--danger-400)' }} onClick={() => handleDelete(s._id)} title="Delete">
+                          <button className="btn btn-ghost btn-icon" style={{ color: 'var(--danger-400)' }} onClick={() => setConfirmDelete(s)} title="Delete">
                             <HiOutlineTrash />
                           </button>
                         )}
@@ -153,6 +164,30 @@ export default function Students() {
           </table>
         </div>
       </div>
+
+      {/* Confirm Delete Modal */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Delete Student</h2>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete <strong>{confirmDelete.name}</strong>? This will also remove all their attendance and performance records.</p>
+            </div>
+            <div className="modal-footer">
+              <div className="flex gap-12">
+                <button className="btn btn-danger" onClick={() => handleDelete(confirmDelete._id)}>
+                  Delete
+                </button>
+                <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

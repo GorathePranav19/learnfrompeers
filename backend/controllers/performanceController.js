@@ -16,7 +16,8 @@ exports.addPerformance = async (req, res) => {
 
     res.status(201).json(performance);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Add performance error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -60,7 +61,8 @@ exports.getStudentPerformance = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get student performance error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -68,7 +70,6 @@ exports.getStudentPerformance = async (req, res) => {
 exports.addBulkPerformance = async (req, res) => {
   try {
     const { records } = req.body;
-    // records: [{ studentId, typingSpeed, accuracy, date, notes }]
     const results = [];
     const errors = [];
 
@@ -80,12 +81,13 @@ exports.addBulkPerformance = async (req, res) => {
         });
         results.push(performance);
       } catch (err) {
-        errors.push({ studentId: record.studentId, error: err.message });
+        errors.push({ studentId: record.studentId, error: 'Failed to save record' });
       }
     }
 
     res.status(201).json({ saved: results.length, errors, results });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Bulk performance error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

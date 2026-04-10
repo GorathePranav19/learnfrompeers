@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '../components/Toast';
 import api from '../api';
 import { HiOutlineCheckCircle } from 'react-icons/hi2';
 
 export default function Performance() {
+  const toast = useToast();
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState('');
   const [form, setForm] = useState({ typingSpeed: '', accuracy: '', notes: '' });
@@ -42,7 +44,7 @@ export default function Performance() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStudent) {
-      alert('Please select a student');
+      toast.warning('Please select a student');
       return;
     }
     setSaving(true);
@@ -54,11 +56,12 @@ export default function Performance() {
         notes: form.notes
       });
       setSuccess(true);
+      toast.success('Performance record saved!');
       setForm({ typingSpeed: '', accuracy: '', notes: '' });
       fetchRecent();
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      alert('Failed to save performance record');
+      toast.error('Failed to save performance record');
     } finally {
       setSaving(false);
     }
@@ -83,12 +86,12 @@ export default function Performance() {
       </div>
 
       {success && (
-        <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', padding: '12px 20px', borderRadius: 'var(--radius-md)', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-400)' }}>
+        <div className="alert-success mb-24">
           <HiOutlineCheckCircle /> Performance record saved!
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div className="dashboard-grid">
         <div className="card">
           <div className="card-header">
             <h2>Add Performance Record</h2>

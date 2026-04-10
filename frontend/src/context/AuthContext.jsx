@@ -10,12 +10,34 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('lfp_user');
-    const token = localStorage.getItem('lfp_token');
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const validateSession = async () => {
+      const storedUser = localStorage.getItem('lfp_user');
+      const token = localStorage.getItem('lfp_token');
+
+      if (storedUser && token) {
+        try {
+          // Validate token by calling /auth/me
+          const res = await api.get('/auth/me');
+          const validatedUser = {
+            id: res.data._id,
+            name: res.data.name,
+            email: res.data.email,
+            role: res.data.role,
+            linkedStudentId: res.data.linkedStudentId
+          };
+          localStorage.setItem('lfp_user', JSON.stringify(validatedUser));
+          setUser(validatedUser);
+        } catch (err) {
+          // Token expired or invalid — clear storage
+          localStorage.removeItem('lfp_token');
+          localStorage.removeItem('lfp_user');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    validateSession();
   }, []);
 
   const login = async (email, password) => {

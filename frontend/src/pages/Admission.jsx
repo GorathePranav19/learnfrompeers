@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../components/Toast';
 import api from '../api';
 import { HiOutlineCheckCircle } from 'react-icons/hi2';
 
 export default function Admission() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState({
     name: '', dob: '', gender: '', phone: '',
     parentName: '', parentPhone: '', parentEmail: '',
@@ -25,9 +27,12 @@ export default function Admission() {
     try {
       await api.post('/students', form);
       setSuccess(true);
+      toast.success('Admission submitted successfully!');
       setTimeout(() => navigate('/students'), 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit admission');
+      const msg = err.response?.data?.message || 'Failed to submit admission';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
