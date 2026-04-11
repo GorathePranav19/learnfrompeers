@@ -9,13 +9,5 @@
       "entrypoint": "backend",
       "routePrefix": "/api"
     }
-  },
-  "env": {
-    "USE_MEMORY_DB": "true",
-    "JWT_SECRET": "x9k2m7pQ4vR8wL3nF6jH1dT5yB0cA8eG2sU7iO4rW9zX3mK6pJ1qN5fV0bD7hY",
-    "JWT_EXPIRES_IN": "7d",
-    "NODE_ENV": "production",
-    "FRONTEND_URL": "https://learnfrompeers.vercel.app"
-  }
 }
 
