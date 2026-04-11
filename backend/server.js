@@ -73,16 +73,6 @@ apiRouter.use('/performance', require('./routes/performance'));
 apiRouter.use('/rankings', require('./routes/rankings'));
 apiRouter.use('/analytics', require('./routes/analytics'));
 
-apiRouter.get('/seed', async (req, res) => {
-  try {
-    const seedDB = require('./utils/seed');
-    await seedDB();
-    res.json({ message: 'Database seeded successfully via Vercel!' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Mount routes on /api (for local dev and standard routing)
 app.use('/api', apiRouter);
 // Mount routes on root (for Vercel Web Services with routePrefix stripping)
