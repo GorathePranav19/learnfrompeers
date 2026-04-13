@@ -57,6 +57,7 @@ const validateStudent = [
   body('parentName').trim().notEmpty().withMessage('Parent name is required'),
   body('parentPhone').trim().notEmpty().withMessage('Parent phone is required'),
   body('course').trim().notEmpty().withMessage('Course is required'),
+  body('batch').isIn(['Morning', 'Evening', 'Weekend']).withMessage('Batch must be Morning, Evening, or Weekend'),
   body('parentEmail').optional({ values: 'falsy' }).isEmail().withMessage('Invalid parent email'),
   body('address').optional().trim(),
   handleValidationErrors

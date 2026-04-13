@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const { connectDB, disconnectDB } = require('./config/db');
 
 const app = express();
@@ -43,6 +44,9 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ── Body Parser ──
 app.use(express.json({ limit: '10kb' }));
+
+// ── Static Files ──
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── Rate Limiting ──
 const generalLimiter = rateLimit({

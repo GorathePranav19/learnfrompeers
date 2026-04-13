@@ -11,7 +11,10 @@ import {
   HiOutlineArrowLeft,
   HiOutlineArrowTrendingUp,
   HiOutlinePencilSquare,
-  HiOutlineXMark
+  HiOutlineXMark,
+  HiOutlineDocumentText,
+  HiOutlineArrowDownTray,
+  HiOutlineTrash
 } from 'react-icons/hi2';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -27,6 +30,15 @@ export default function StudentProfile() {
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // New features state
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docLabel, setDocLabel] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusForm, setStatusForm] = useState({ status: '', reason: '' });
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -57,6 +69,8 @@ export default function StudentProfile() {
       parentName: student.parentName,
       parentPhone: student.parentPhone,
       parentEmail: student.parentEmail || '',
+      course: student.course,
+      batch: student.batch || '',
       address: student.address || ''
     });
     setShowEdit(true);
@@ -74,6 +88,75 @@ export default function StudentProfile() {
       toast.error('Failed to update student');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadId = async () => {
+    try {
+      const res = await api.get(`/students/${id}/idcard`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `idcard-${student.studentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error('Failed to download ID card');
+    }
+  };
+
+  const handleUploadDocument = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+    setUploadingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('document', selectedFile);
+      formData.append('label', docLabel);
+
+      const res = await api.post(`/students/${id}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setStudent(res.data);
+      setSelectedFile(null);
+      setDocLabel('');
+      toast.success('Document uploaded successfully');
+    } catch (err) {
+      toast.error('Failed to upload document');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    try {
+      const res = await api.delete(`/students/${id}/documents/${docId}`);
+      setStudent(res.data);
+      toast.success('Document deleted');
+    } catch (err) {
+      toast.error('Failed to delete document');
+    }
+  };
+
+  const openStatusModal = () => {
+    setStatusForm({ status: student.status, reason: '' });
+    setShowStatusModal(true);
+  };
+
+  const handleStatusSubmit = async (e) => {
+    e.preventDefault();
+    setStatusSaving(true);
+    try {
+      const res = await api.put(`/students/${id}/status`, statusForm);
+      setStudent(res.data);
+      setShowStatusModal(false);
+      toast.success('Status updated successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setStatusSaving(false);
     }
   };
 
@@ -110,23 +193,35 @@ export default function StudentProfile() {
           <h2>{student.name}</h2>
           <div className="student-profile-meta">
             <span><HiOutlineAcademicCap /> {student.course}</span>
+            {student.batch && <span className="badge badge-info">{student.batch} Batch</span>}
             <span style={{ color: 'var(--primary-400)', fontWeight: 600 }}>{student.studentId}</span>
-            <span className={`badge ${student.status === 'approved' ? 'badge-success' : 'badge-warning'}`}>
+            <span className={`badge ${student.status === 'approved' ? 'badge-success' : student.status === 'dropped' || student.status === 'rejected' ? 'badge-danger' : 'badge-warning'}`}>
               {student.status}
             </span>
           </div>
         </div>
-        {user?.role === 'admin' && (
-          <button className="btn btn-secondary" onClick={openEdit} style={{ marginLeft: 'auto' }}>
-            <HiOutlinePencilSquare /> Edit
+        <div className="flex gap-12" style={{ marginLeft: 'auto' }}>
+          <button className="btn btn-primary" onClick={handleDownloadId}>
+            <HiOutlineArrowDownTray style={{ marginRight: 6 }} /> ID Card
           </button>
-        )}
+          {user?.role === 'admin' && (
+            <>
+              <button className="btn btn-secondary" onClick={openEdit}>
+                <HiOutlinePencilSquare /> Edit
+              </button>
+              <button className="btn btn-secondary" onClick={openStatusModal}>
+                Status
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="tabs">
         <button className={`tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
         <button className={`tab ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>Attendance</button>
         <button className={`tab ${activeTab === 'performance' ? 'active' : ''}`} onClick={() => setActiveTab('performance')}>Performance</button>
+        <button className={`tab ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>Documents</button>
       </div>
 
       {activeTab === 'overview' && (
@@ -245,6 +340,30 @@ export default function StudentProfile() {
               </div>
             </div>
           </div>
+
+          {/* Status History */}
+          {(student.statusHistory && student.statusHistory.length > 0) && (
+            <div className="card mt-24" style={{ marginTop: 24 }}>
+              <div className="card-header"><h2>Status History</h2></div>
+              <div className="card-body">
+                <div className="timeline">
+                  {student.statusHistory.slice().reverse().map((h, i) => (
+                    <div key={i} className="timeline-item" style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+                      <div className="timeline-date" style={{ color: 'var(--text-muted)', fontSize: 13, minWidth: 100 }}>
+                        {formatDate(h.date)}
+                      </div>
+                      <div className="timeline-content">
+                        <span className={`badge ${h.status === 'approved' ? 'badge-success' : h.status === 'dropped' || h.status === 'rejected' ? 'badge-danger' : 'badge-warning'}`} style={{ marginBottom: 4, display: 'inline-block' }}>
+                          Changed to {h.status}
+                        </span>
+                        <p style={{ margin: 0, fontSize: 14 }}>{h.reason}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -359,6 +478,66 @@ export default function StudentProfile() {
         </>
       )}
 
+      {activeTab === 'documents' && (
+        <div className="card">
+          <div className="card-header">
+            <h2>Student Documents</h2>
+          </div>
+          <div className="card-body">
+            {user?.role === 'admin' && (
+              <form onSubmit={handleUploadDocument} className="mb-24" style={{ display: 'flex', gap: 16, alignItems: 'flex-end', background: 'var(--bg-secondary)', padding: 16, borderRadius: 8 }}>
+                <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="form-label">Document Label</label>
+                  <input type="text" className="form-input" placeholder="e.g. Birth Certificate" value={docLabel} onChange={e => setDocLabel(e.target.value)} required />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="form-label">File</label>
+                  <input type="file" className="form-input" accept=".jpg,.jpeg,.png,.pdf" onChange={e => setSelectedFile(e.target.files[0])} required />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={uploadingDoc}>
+                  {uploadingDoc ? 'Uploading...' : 'Upload'}
+                </button>
+              </form>
+            )}
+
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Uploaded On</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(student.documents || []).map((doc) => (
+                    <tr key={doc._id}>
+                      <td style={{ fontWeight: 500 }}><HiOutlineDocumentText style={{ verticalAlign: 'middle', marginRight: 6 }} /> {doc.label}</td>
+                      <td>{formatDate(doc.uploadedAt)}</td>
+                      <td>
+                        <div className="flex gap-8">
+                          <a href={`${api.defaults.baseURL.replace('/api', '')}${doc.path}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-icon" title="View Document">
+                            <HiOutlineArrowDownTray />
+                          </a>
+                          {user?.role === 'admin' && (
+                            <button className="btn btn-ghost btn-icon" style={{ color: 'var(--danger-400)' }} onClick={() => handleDeleteDocument(doc._id)} title="Delete Document">
+                              <HiOutlineTrash />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {(!student.documents || student.documents.length === 0) && (
+                    <tr><td colSpan={3} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No documents uploaded yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Student Modal */}
       {showEdit && (
         <div className="modal-overlay" onClick={() => setShowEdit(false)}>
@@ -389,6 +568,15 @@ export default function StudentProfile() {
                       <option value="Tally">Tally</option>
                     </select>
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">Batch</label>
+                    <select className="form-select" value={editForm.batch} onChange={e => setEditForm({ ...editForm, batch: e.target.value })} required>
+                      <option value="">Select Batch</option>
+                      <option value="Morning">Morning</option>
+                      <option value="Evening">Evening</option>
+                      <option value="Weekend">Weekend</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Parent Name</label>
@@ -413,6 +601,46 @@ export default function StudentProfile() {
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowEdit(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Modal */}
+      {showStatusModal && (
+        <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Change Student Status</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowStatusModal(false)}>
+                <HiOutlineXMark />
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleStatusSubmit}>
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select className="form-select" value={statusForm.status} onChange={e => setStatusForm({ ...statusForm, status: e.target.value })} required>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="dropped">Dropped</option>
+                    <option value="transferred">Transferred</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Reason / Notes</label>
+                  <textarea className="form-textarea" placeholder="Provide a reason for the status change..." value={statusForm.reason} onChange={e => setStatusForm({ ...statusForm, reason: e.target.value })} required />
+                </div>
+                <div className="flex gap-12 mt-24">
+                  <button type="submit" className="btn btn-primary" disabled={statusSaving}>
+                    {statusSaving ? 'Saving...' : 'Update Status'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowStatusModal(false)}>
                     Cancel
                   </button>
                 </div>

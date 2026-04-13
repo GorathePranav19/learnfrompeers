@@ -17,6 +17,7 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [batchFilter, setBatchFilter] = useState('');
   const [total, setTotal] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const debounceRef = useRef(null);
@@ -28,7 +29,7 @@ export default function Students() {
       fetchStudents();
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, batchFilter]);
 
   const fetchStudents = async () => {
     try {
@@ -36,6 +37,7 @@ export default function Students() {
       const params = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
+      if (batchFilter) params.batch = batchFilter;
       const res = await api.get('/students', { params });
       setStudents(res.data.students);
       setTotal(res.data.total);
@@ -96,6 +98,17 @@ export default function Students() {
         <select
           className="form-select"
           style={{ width: 160 }}
+          value={batchFilter}
+          onChange={(e) => setBatchFilter(e.target.value)}
+        >
+          <option value="">All Batches</option>
+          <option value="Morning">Morning</option>
+          <option value="Evening">Evening</option>
+          <option value="Weekend">Weekend</option>
+        </select>
+        <select
+          className="form-select"
+          style={{ width: 160 }}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -103,6 +116,8 @@ export default function Students() {
           <option value="approved">Approved</option>
           <option value="pending">Pending</option>
           <option value="rejected">Rejected</option>
+          <option value="dropped">Dropped</option>
+          <option value="transferred">Transferred</option>
         </select>
       </div>
 
@@ -114,6 +129,7 @@ export default function Students() {
                 <th>Student ID</th>
                 <th>Name</th>
                 <th>Course</th>
+                <th>Batch</th>
                 <th>Parent</th>
                 <th>Phone</th>
                 <th>Status</th>
@@ -133,6 +149,7 @@ export default function Students() {
                       <Link to={`/students/${s._id}`} style={{ fontWeight: 600 }}>{s.name}</Link>
                     </td>
                     <td>{s.course}</td>
+                    <td>{s.batch || '-'}</td>
                     <td>{s.parentName}</td>
                     <td>{s.phone}</td>
                     <td>

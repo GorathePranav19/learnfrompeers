@@ -53,9 +53,34 @@ const studentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['pending', 'approved', 'rejected', 'dropped', 'transferred'],
     default: 'pending'
   },
+  batch: {
+    type: String,
+    enum: ['Morning', 'Evening', 'Weekend'],
+    required: [true, 'Batch is required']
+  },
+  documents: [{
+    path: String,
+    label: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  statusHistory: [{
+    status: String,
+    reason: String,
+    date: {
+      type: Date,
+      default: Date.now
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  }],
   admissionDate: {
     type: Date,
     default: Date.now

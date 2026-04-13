@@ -10,7 +10,7 @@ export default function Admission() {
   const [form, setForm] = useState({
     name: '', dob: '', gender: '', phone: '',
     parentName: '', parentPhone: '', parentEmail: '',
-    course: '', address: ''
+    course: '', batch: '', address: ''
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -100,6 +100,15 @@ export default function Admission() {
                   <option value="Computer Basics">Computer Basics</option>
                   <option value="MS Office">MS Office</option>
                   <option value="Tally">Tally</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="adm-batch">Batch *</label>
+                <select id="adm-batch" name="batch" className="form-select" value={form.batch} onChange={handleChange} required>
+                  <option value="">Select Batch</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Evening">Evening</option>
+                  <option value="Weekend">Weekend</option>
                 </select>
               </div>
             </div>
