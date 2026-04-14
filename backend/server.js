@@ -19,6 +19,7 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:5173',
   'https://learnfrompeers.vercel.app',
+  'https://learnfrompeers-m8ly.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
