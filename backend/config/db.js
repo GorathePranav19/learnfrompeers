@@ -12,11 +12,9 @@ const connectDB = async () => {
     }
 
     if (useMemory) {
-      // In-memory MongoDB for dev/testing (no external MongoDB needed)
       const { MongoMemoryServer } = require('mongodb-memory-server');
       mongoServer = await MongoMemoryServer.create();
-      mongoUri = mongoServer.getUri();
-    } else {
+      mongoUri = mongoServer.getUri();    } else {
       // Real MongoDB for production/persistent data
       mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
       if (!mongoUri) {

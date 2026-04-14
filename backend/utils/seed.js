@@ -40,12 +40,12 @@ const seedDB = async () => {
 
   // Create sample students
   const studentsData = [
-    { name: 'Rahul Sharma', dob: '2012-05-15', gender: 'male', phone: '9876543210', parentName: 'Suresh Sharma', parentPhone: '9876543211', parentEmail: 'suresh@email.com', course: 'Typing', status: 'approved' },
-    { name: 'Priya Gupta', dob: '2013-03-22', gender: 'female', phone: '9876543212', parentName: 'Ramesh Gupta', parentPhone: '9876543213', parentEmail: 'ramesh@email.com', course: 'Typing', status: 'approved' },
-    { name: 'Amit Kumar', dob: '2011-08-10', gender: 'male', phone: '9876543214', parentName: 'Vijay Kumar', parentPhone: '9876543215', parentEmail: 'vijay@email.com', course: 'Computer Basics', status: 'approved' },
-    { name: 'Sneha Patel', dob: '2012-11-30', gender: 'female', phone: '9876543216', parentName: 'Rakesh Patel', parentPhone: '9876543217', parentEmail: 'rakesh@email.com', course: 'Typing', status: 'approved' },
-    { name: 'Vikram Singh', dob: '2013-07-04', gender: 'male', phone: '9876543218', parentName: 'Arun Singh', parentPhone: '9876543219', parentEmail: 'arun@email.com', course: 'Computer Basics', status: 'approved' },
-    { name: 'Anjali Verma', dob: '2014-01-25', gender: 'female', phone: '9876543220', parentName: 'Deepak Verma', parentPhone: '9876543221', parentEmail: '', course: 'Typing', status: 'pending' },
+    { name: 'Rahul Sharma', dob: '2012-05-15', gender: 'male', phone: '9876543210', parentName: 'Suresh Sharma', parentPhone: '9876543211', parentEmail: 'suresh@email.com', course: 'Typing', batch: 'Morning', status: 'approved' },
+    { name: 'Priya Gupta', dob: '2013-03-22', gender: 'female', phone: '9876543212', parentName: 'Ramesh Gupta', parentPhone: '9876543213', parentEmail: 'ramesh@email.com', course: 'Typing', batch: 'Evening', status: 'approved' },
+    { name: 'Amit Kumar', dob: '2011-08-10', gender: 'male', phone: '9876543214', parentName: 'Vijay Kumar', parentPhone: '9876543215', parentEmail: 'vijay@email.com', course: 'Computer Basics', batch: 'Morning', status: 'approved' },
+    { name: 'Sneha Patel', dob: '2012-11-30', gender: 'female', phone: '9876543216', parentName: 'Rakesh Patel', parentPhone: '9876543217', parentEmail: 'rakesh@email.com', course: 'Typing', batch: 'Weekend', status: 'approved' },
+    { name: 'Vikram Singh', dob: '2013-07-04', gender: 'male', phone: '9876543218', parentName: 'Arun Singh', parentPhone: '9876543219', parentEmail: 'arun@email.com', course: 'Computer Basics', batch: 'Evening', status: 'approved' },
+    { name: 'Anjali Verma', dob: '2014-01-25', gender: 'female', phone: '9876543220', parentName: 'Deepak Verma', parentPhone: '9876543221', parentEmail: '', course: 'Typing', batch: 'Morning', status: 'pending' },
   ];
 
   const students = [];
