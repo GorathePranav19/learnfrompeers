@@ -2,9 +2,8 @@
   "name": "lfp",
   "version": "1.0.0",
   "private": true,
+  "workspaces": ["api", "frontend"],
   "scripts": {
-    "build": "npm run build:frontend",
-    "build:api": "cd api && npm install",
-    "build:frontend": "cd frontend && npm install && npm run build"
+    "build": "cd frontend && npm install && npm run build"
   }
 }
