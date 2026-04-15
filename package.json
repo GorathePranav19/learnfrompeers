@@ -2,8 +2,7 @@
   "name": "lfp",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["api", "frontend"],
   "scripts": {
-    "build": "cd frontend && npm install && npm run build"
+    "build": "cd frontend && npm install && ./node_modules/.bin/vite build"
   }
 }
