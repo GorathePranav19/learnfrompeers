@@ -1,0 +1,10 @@
+{
+  "name": "lfp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:frontend",
+    "build:api": "cd api && npm install",
+    "build:frontend": "cd frontend && npm install && npm run build"
+  }
+}

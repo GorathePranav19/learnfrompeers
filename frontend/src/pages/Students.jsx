@@ -138,9 +138,9 @@ export default function Students() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7}><div className="loading-spinner"><div className="spinner" /></div></td></tr>
+                <tr><td colSpan={8}><div className="loading-spinner"><div className="spinner" /></div></td></tr>
               ) : students.length === 0 ? (
-                <tr><td colSpan={7} className="text-center" style={{ padding: 60, color: 'var(--text-muted)' }}>No students found</td></tr>
+                <tr><td colSpan={8} className="text-center" style={{ padding: 60, color: 'var(--text-muted)' }}>No students found</td></tr>
               ) : (
                 students.map((s) => (
                   <tr key={s._id}>
