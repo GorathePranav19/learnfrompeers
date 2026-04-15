@@ -1,101 +1,89 @@
-const api = async (req, res) => {
-  require('dotenv').config();
-  
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+let conn = null;
+
+async function getConnection() {
+  if (conn && mongoose.connection.readyState === 1) return conn;
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  conn = await mongoose.connect(uri);
+  return conn;
+}
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['admin', 'teacher', 'parent', 'student'], default: 'student' }
+}, { timestamps: true });
+
+const studentSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  rollNo: { type: String },
+  email: { type: String },
+  phone: { type: String },
+  parentEmail: { type: String },
+  batch: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
+  status: { type: String, enum: ['pending', 'active', 'inactive'], default: 'pending' }
+}, { timestamps: true });
+
+const attendanceSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  date: { type: Date, required: true },
+  status: { type: String, enum: ['present', 'absent', 'late'], required: true },
+  markedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  notes: { type: String, default: '' }
+}, { timestamps: true });
+attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
+
+const performanceSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  date: { type: Date, default: Date.now },
+  wpm: { type: Number, required: true },
+  accuracy: { type: Number, required: true },
+  recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true });
+
+const protect = async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    res.status(401).json({ message: 'Not authorized' });
+    return null;
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const User = mongoose.models.User || mongoose.model('User', userSchema);
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) {
+      res.status(401).json({ message: 'User not found' });
+      return null;
+    }
+    return user;
+  } catch (err) {
+    res.status(401).json({ message: 'Invalid token' });
+    return null;
+  }
+};
+
+export default async function handler(req, res) {
   const path = req.url.replace('/api', '');
   const method = req.method.toUpperCase();
-  
-  // Parse body if present
-  let body = {};
-  if (req.body) {
-    if (typeof req.body === 'string') {
-      try { body = JSON.parse(req.body); } catch (e) { /* ignore */ }
-    } else {
-      body = req.body;
-    }
-  }
-  
+  const { body } = req;
+
   if (path === '/health' && method === 'GET') {
     return res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   }
-  
-  const mongoose = require('mongoose');
-  const bcrypt = require('bcryptjs');
-  const jwt = require('jsonwebtoken');
-  
-  let conn = null;
-  async function getConnection() {
-    if (conn && mongoose.connection.readyState === 1) return conn;
-    const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
-    conn = await mongoose.connect(uri);
-    return conn;
-  }
-  
-  // User Schema
-  const userSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'teacher', 'parent', 'student'], default: 'student' }
-  }, { timestamps: true });
+
+  await getConnection();
+
   const User = mongoose.models.User || mongoose.model('User', userSchema);
-  
-  // Student Schema  
-  const studentSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    rollNo: { type: String },
-    email: { type: String },
-    phone: { type: String },
-    parentEmail: { type: String },
-    batch: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
-    status: { type: String, enum: ['pending', 'active', 'inactive'], default: 'pending' }
-  }, { timestamps: true });
   const Student = mongoose.models.Student || mongoose.model('Student', studentSchema);
-  
-  // Attendance Schema
-  const attendanceSchema = new mongoose.Schema({
-    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-    date: { type: Date, required: true },
-    status: { type: String, enum: ['present', 'absent', 'late'], required: true },
-    markedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    notes: { type: String, default: '' }
-  }, { timestamps: true });
-  attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
   const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);
-  
-  // Performance Schema
-  const performanceSchema = new mongoose.Schema({
-    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-    date: { type: Date, default: Date.now },
-    wpm: { type: Number, required: true },
-    accuracy: { type: Number, required: true },
-    recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-  }, { timestamps: true });
   const Performance = mongoose.models.Performance || mongoose.model('Performance', performanceSchema);
-  
-  const protect = async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      res.status(401).json({ message: 'Not authorized' });
-      return null;
-    }
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select('-password');
-      if (!user) {
-        res.status(401).json({ message: 'User not found' });
-        return null;
-      }
-      return user;
-    } catch (err) {
-      res.status(401).json({ message: 'Invalid token' });
-      return null;
-    }
-  };
-  
-  // POST /auth/login
+
   if (path === '/auth/login' && method === 'POST') {
     try {
-      await getConnection();
       const { email, password } = body;
       if (!email || !password) {
         return res.status(400).json({ message: 'Email and password required' });
@@ -117,11 +105,9 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
-  // POST /auth/register
+
   if (path === '/auth/register' && method === 'POST') {
     try {
-      await getConnection();
       const { name, email, password, role } = body;
       if (!name || !email || !password) {
         return res.status(400).json({ message: 'Name, email, password required' });
@@ -141,10 +127,9 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
+
   if (path === '/auth/me' && method === 'GET') {
     try {
-      await getConnection();
       const user = await protect(req, res);
       if (!user) return;
       return res.status(200).json(user);
@@ -152,22 +137,20 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
+
   if (path === '/students' && method === 'GET') {
     try {
-      await getConnection();
       const user = await protect(req, res);
       if (!user) return;
       const students = await Student.find().populate('batch', 'name');
-      return res.status(200).json(students);
+      return res.status(200).json({ students, total: students.length });
     } catch (err) {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
+
   if (path === '/students' && method === 'POST') {
     try {
-      await getConnection();
       const user = await protect(req, res);
       if (!user) return;
       if (!['admin', 'teacher'].includes(user.role)) {
@@ -179,10 +162,9 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
+
   if (path.match(/^\/students\/[^/]+$/) && method === 'GET') {
     try {
-      await getConnection();
       const user = await protect(req, res);
       if (!user) return;
       const id = path.split('/')[2];
@@ -195,10 +177,9 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
+
   if (path === '/analytics' && method === 'GET') {
     try {
-      await getConnection();
       const user = await protect(req, res);
       if (!user) return;
       if (!['admin', 'teacher'].includes(user.role)) {
@@ -225,10 +206,9 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
+
   if (path === '/rankings' && method === 'GET') {
     try {
-      await getConnection();
       const user = await protect(req, res);
       if (!user) return;
       const students = await Student.find({ status: 'active' });
@@ -253,8 +233,6 @@ const api = async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
   }
-  
-  return res.status(404).json({ message: 'Not found' });
-};
 
-module.exports = api;
+  return res.status(404).json({ message: 'Not found' });
+}
