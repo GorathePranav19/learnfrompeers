@@ -39,8 +39,8 @@ export default function Students() {
       if (statusFilter) params.status = statusFilter;
       if (batchFilter) params.batch = batchFilter;
       const res = await api.get('/students', { params });
-      setStudents(res.data.students);
-      setTotal(res.data.total);
+      setStudents(res.data?.students || []);
+      setTotal(res.data?.total || 0);
     } catch (err) {
       console.error('Failed to fetch students:', err);
     } finally {
