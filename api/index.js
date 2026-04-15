@@ -19,13 +19,19 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const studentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  rollNo: { type: String },
-  email: { type: String },
+  studentId: { type: String, unique: true },
+  name: { type: String, required: true, trim: true },
+  dob: { type: Date },
+  gender: { type: String, enum: ['male', 'female', 'other'] },
   phone: { type: String },
-  parentEmail: { type: String },
-  batch: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
-  status: { type: String, enum: ['pending', 'active', 'inactive'], default: 'pending' }
+  parentName: { type: String },
+  parentPhone: { type: String },
+  parentEmail: { type: String, default: '' },
+  course: { type: String },
+  address: { type: String, default: '' },
+  batch: { type: String, enum: ['Morning', 'Evening', 'Weekend'] },
+  status: { type: String, enum: ['pending', 'approved', 'rejected', 'dropped', 'transferred'], default: 'pending' },
+  admissionDate: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 const attendanceSchema = new mongoose.Schema({
@@ -142,7 +148,7 @@ export default async function handler(req, res) {
     try {
       const user = await protect(req, res);
       if (!user) return;
-      const students = await Student.find().populate('batch', 'name');
+      const students = await Student.find();
       return res.status(200).json({ students, total: students.length });
     } catch (err) {
       return res.status(500).json({ message: 'Server error' });
@@ -168,7 +174,7 @@ export default async function handler(req, res) {
       const user = await protect(req, res);
       if (!user) return;
       const id = path.split('/')[2];
-      const student = await Student.findById(id).populate('batch', 'name');
+      const student = await Student.findById(id);
       if (!student) {
         return res.status(404).json({ message: 'Student not found' });
       }
